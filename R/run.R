@@ -229,7 +229,7 @@ check_parameters_interactive <- function(env, spec) {
   list2env(spec[setdiff(names(spec), names(env))], env)
 
   ## We might need a slightly better error message here that indicates
-  ## that we're running in a pecular mode so the value might just have
+  ## that we're running in a peculiar mode so the value might just have
   ## been overwritten
   found <- lapply(names(spec), function(v) env[[v]])
   check_parameter_values(found[!vlapply(found, is.null)], FALSE)

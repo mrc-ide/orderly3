@@ -252,7 +252,7 @@ test_that("global resources can be directories", {
   expect_length(meta$custom$orderly$global, 2)
   expect_mapequal(
     meta$custom$orderly$global[[1]],
-                  list(here = "global_data/iris.csv", there = "data/iris.csv"))
+    list(here = "global_data/iris.csv", there = "data/iris.csv"))
   expect_mapequal(
     meta$custom$orderly$global[[2]],
     list(here = "global_data/mtcars.csv", there = "data/mtcars.csv"))
@@ -265,4 +265,154 @@ test_that("global resources can be directories", {
     d,
     list(iris = read.csv(file.path(path, "global/data/iris.csv")),
          mtcars = read.csv(file.path(path, "global/data/mtcars.csv"))))
+})
+
+
+test_that("can use subqueries in orderly run", {
+  path <- test_prepare_orderly_example(c("explicit", "depends", "depends2"))
+
+  env_explicit1 <- new.env()
+  id_explicit1 <- orderly_run("explicit", root = path, envir = env_explicit1)
+  env_depends1 <- new.env()
+  id_depends1 <- orderly_run("depends", root = path, envir = env_depends1)
+  env_explicit2 <- new.env()
+  id_explicit2 <- orderly_run("explicit", root = path, envir = env_explicit2)
+
+  env_depends2 <- new.env()
+  id_depends2 <- orderly_run("depends2", root = path, envir = env_depends2)
+
+  path_depends2 <- file.path(path, "archive", "depends2", id_depends2)
+  expect_true(file.exists(path_depends2))
+  expect_true(file.exists(file.path(path_depends2, "depends_graph.png")))
+  expect_true(file.exists(file.path(path_depends2, "explicit_graph.png")))
+  expect_true(file.exists(file.path(path_depends2, "all_plots.zip")))
+  expect_setequal(
+    zip::zip_list(file.path(path_depends2, "all_plots.zip"))$filename,
+    c("depends_graph.png", "explicit_graph.png"))
+
+  ## "explicit" dependency was pulled in from first id i.e. the version of
+  ## "explicit" used by "depends"
+  path_explicit1 <- file.path(path, "archive", "explicit", id_explicit1)
+  expect_equal(
+    unname(tools::md5sum(file.path(path_depends2, "explicit_graph.png"))),
+    unname(tools::md5sum(file.path(path_explicit1, "mygraph.png"))))
+  path_explicit2 <- file.path(path, "archive", "explicit", id_explicit2)
+  expect_true(
+    unname(tools::md5sum(file.path(path_depends2, "explicit_graph.png"))) !=
+      unname(tools::md5sum(file.path(path_explicit2, "mygraph.png"))))
+})
+
+
+test_that("can use subqueries in interactive run", {
+  path <- test_prepare_orderly_example(c("explicit", "depends", "depends2"))
+
+  env_explicit1 <- new.env()
+  id_explicit1 <- orderly_run("explicit", root = path, envir = env_explicit1)
+  env_depends1 <- new.env()
+  id_depends1 <- orderly_run("depends", root = path, envir = env_depends1)
+  env_explicit2 <- new.env()
+  id_explicit2 <- orderly_run("explicit", root = path, envir = env_explicit2)
+
+  env_depends2 <- new.env()
+  path_src <- file.path(path, "src", "depends2")
+  withr::with_dir(path_src, sys.source("orderly.R", env_depends2))
+
+  expect_true(file.exists(file.path(path_src, "depends_graph.png")))
+  expect_true(file.exists(file.path(path_src, "explicit_graph.png")))
+  expect_true(file.exists(file.path(path_src, "all_plots.zip")))
+  expect_setequal(
+    zip::zip_list(file.path(path_src, "all_plots.zip"))$filename,
+    c("depends_graph.png", "explicit_graph.png"))
+
+  ## "explicit" dependency was pulled in from first id i.e. the version of
+  ## "explicit" used by "depends"
+  path_explicit1 <- file.path(path, "archive", "explicit", id_explicit1)
+  expect_equal(
+    unname(tools::md5sum(file.path(path_src, "explicit_graph.png"))),
+    unname(tools::md5sum(file.path(path_explicit1, "mygraph.png"))))
+  path_explicit2 <- file.path(path, "archive", "explicit", id_explicit2)
+  expect_true(
+    unname(tools::md5sum(file.path(path_src, "explicit_graph.png"))) !=
+      unname(tools::md5sum(file.path(path_explicit2, "mygraph.png"))))
+})
+
+
+test_that("Can query for dependencies", {
+  path <- test_prepare_orderly_example(NULL)
+  create_random_report(path, "a")
+  create_random_report(path, "b", list(a = "latest"))
+
+  env_a1 <- new.env()
+  id_a1 <- orderly_run("a", root = path, envir = env_a1)
+  env_b1 <- new.env()
+  id_b1 <- orderly_run("b", root = path, envir = env_b1)
+
+  path_a1 <- file.path(path, "archive", "a", id_a1)
+  path_b1 <- file.path(path, "archive", "b", id_b1)
+
+  expect_true(file.exists(file.path(path_a1, "data.rds")))
+  expect_true(file.exists(file.path(path_b1, "input1.rds")))
+  expect_true(file.exists(file.path(path_b1, "data.rds")))
+  ## b1 depends on a1
+  expect_equal(
+    unname(tools::md5sum(file.path(path_b1, "input1.rds"))),
+    unname(tools::md5sum(file.path(path_a1, "data.rds"))))
+
+
+  ## Can search for reports usedby another
+  create_random_report(path, "c", list(a = "usedby(latest(name == \\\"b\\\"))"))
+  env_c1 <- new.env()
+  id_c1 <- orderly_run("c", root = path, envir = env_c1)
+  path_c1 <- file.path(path, "archive", "c", id_c1)
+
+  ## c1 depends on a1
+  expect_equal(
+    unname(tools::md5sum(file.path(path_c1, "input1.rds"))),
+    unname(tools::md5sum(file.path(path_a1, "data.rds"))))
+
+  ## Can search for reports which use another
+  create_random_report(path, "d", list(b = "uses(latest(name == \\\"a\\\"))"))
+  env_d1 <- new.env()
+  id_d1 <- orderly_run("d", root = path, envir = env_d1)
+  path_d1 <- file.path(path, "archive", "d", id_d1)
+
+  ## d1 depends on b1
+  expect_equal(
+    unname(tools::md5sum(file.path(path_d1, "input1.rds"))),
+    unname(tools::md5sum(file.path(path_b1, "data.rds"))))
+})
+
+
+test_that("useful error returned when dependency query returns no results", {
+  path <- test_prepare_orderly_example(NULL)
+  create_random_report(path, "a")
+  create_random_report(path, "b", list(a = "latest"))
+
+  env_a1 <- new.env()
+  id_a1 <- orderly_run("a", root = path, envir = env_a1)
+  env_b1 <- new.env()
+  id_b1 <- orderly_run("b", root = path, envir = env_b1)
+  env_a2 <- new.env()
+  id_a2 <- orderly_run("a", root = path, envir = env_a2)
+
+  ## No report satisfies query as no report built from id_a2
+  create_random_report(path, "c", list(b = "uses(latest(name == \\\"a\\\"))"))
+  env_c1 <- new.env()
+  expect_error(orderly_run("c", root = path, envir = env_c1),
+               "Found no packets")
+})
+
+
+test_that("useful error returned when dependency query returns multiple", {
+  path <- test_prepare_orderly_example(NULL)
+  create_random_report(path, "a")
+  create_random_report(path, "b", list(a = 'name == "a"'))
+
+  env_a1 <- new.env()
+  id_a1 <- orderly_run("a", root = path, envir = env_a1)
+  env_a2 <- new.env()
+  id_a2 <- orderly_run("a", root = path, envir = env_a2)
+  env_b1 <- new.env()
+  expect_error(orderly_run("b", root = path, envir = env_b1),
+               "Found more than 1 packet for dependency, dependency must return a single packet.")
 })

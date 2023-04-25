@@ -140,25 +140,84 @@ static_orderly_artefact <- function(args) {
 ##'   so c(here.csv = "there.csv") will take the upstream file
 ##'   `there.csv` and copy it over as `here.csv`.
 ##'
+##' @param as (Optional) A name to refer to the results of running
+##'   this query. The name can be used in subsequent calls to
+##'   `orderly_depends` as a subquery.
+##'
 ##' @return Undefined
 ##' @export
-orderly_dependency <- function(name, query, use) {
+orderly_dependency <- function(name, query, use, as = NULL) {
   assert_scalar_character(name)
   assert_scalar_character(query)
+  if (!is.null(as)) {
+    assert_scalar_character(as)
+  }
 
   assert_character(use)
   assert_named(use, unique = TRUE)
 
   ctx <- orderly_context()
-  id <- outpack::outpack_query(query, ctx$parameters, name = name,
-                               require_unpacked = TRUE, root = ctx$root)
+  id <- run_outpack_query(query, ctx$parameters, ctx$env, name = name,
+                          root = ctx$root)
   if (ctx$is_active) {
     outpack::outpack_packet_use_dependency(id, use, ctx$packet)
   } else {
     outpack::outpack_copy_files(id, use, ctx$path, ctx$root)
   }
 
+  if (!is.null(as)) {
+    if (as %in% ls(ctx$env)) {
+      stop(paste0("Trying to save query result as '", as,
+                  "' but a variable with that name already exists."))
+    }
+
+    id_terms <- lapply(id, function(x) bquote(id == .(x)))
+    subquery <- id_terms[[1]]
+    for (term in id_terms[-1]) {
+      subquery <- call("||", subquery, term)
+    }
+    ctx$env[[as]] <- as_outpack_query_result(subquery)
+  }
+
   invisible()
+}
+
+
+as_outpack_query_result <- function(x) {
+  class(x) <- c("outpack_query_result", class(x))
+  x
+}
+
+
+is_outpack_query_result <- function(x) {
+  vlapply(x, function(item) inherits(item, "outpack_query_result"))
+}
+
+
+get_outpack_query_results <- function(env) {
+  all_items <- mget(ls(env), env)
+  all_items[is_outpack_query_result(all_items)]
+}
+
+
+run_outpack_query <- function(query, parameters, env, name, root) {
+  subqueries <- get_outpack_query_results(env)
+  if (length(subqueries) == 0) {
+    subqueries <- NULL
+  }
+  ids <- outpack::outpack_query(query, parameters, name = name,
+                                require_unpacked = TRUE,
+                                subquery = subqueries,
+                                root = root)
+  if (any(is.na(ids)) || length(ids) == 0) {
+    ## TODO: Include query in the error message
+    stop("Found no packets")
+  }
+  if (length(ids) > 1) {
+    ## TODO: Include query in the error message
+    stop("Found more than 1 packet for dependency, dependency must return a single packet.")
+  }
+  ids
 }
 
 
