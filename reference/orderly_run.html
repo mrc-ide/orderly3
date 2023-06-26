@@ -60,6 +60,7 @@ your script and check that all expected artefacts were created.</p>
 <span>  envir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  logging_console <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  logging_threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  search_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  root <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  locate <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -99,6 +100,11 @@ verbosity). Practically this has no effect at present as we've
 not added any fine-grained logging.</p></dd>
 
 
+<dt>search_options</dt>
+<dd><p>Optional control over locations, when used with
+<a href="orderly_dependency.html">orderly_dependency</a>; see Details.</p></dd>
+
+
 <dt>root</dt>
 <dd><p>The path to an orderly root directory, or <code>NULL</code>
 (the default) to search for one from the current working
@@ -117,6 +123,61 @@ parents until it finds an <code>.outpack</code> directory</p></dd>
     
 
 <p>The id of the created report (a string)</p>
+    </div>
+    <div id="locations-used-in-dependency-resolution">
+    <h2>Locations used in dependency resolution</h2>
+    
+
+
+<p>If your packet depends on other packets, you will want to control
+the locations that are used to find appropriate packets. The
+control for this is passed through this function and <em>not</em> as an
+argument to <a href="orderly_dependency.html">orderly_dependency</a> because this is a
+property of the way that a packet is created and not of a packet
+itself; importantly different users may have different names for
+their locations so it makes little sense to encode the location
+name into the source code. Alternatively, you want to use
+different locations in different contexts (initial development
+where you want to include local copies packets as possible
+dependencies vs resolving dependencies only as they would be
+resolved on one of your locations!</p>
+<p>Similarly, you might want to include packets that are known by
+other locations but are not currently downloaded onto this
+machine - pulling these packets in could take anything from
+seconds to hours depending on their size and the speed of your
+network connection (but <em>not</em> pulling in the packets could mean
+that your packet fails to run).</p>
+<p>To allow for control over this you can pass in an argument
+<code>search_options</code>, which is a <a href="https://rdrr.io/pkg/outpack/man/outpack_search_options.html" class="external-link">outpack::outpack_search_options</a>
+object, and allows control over the names of the locations to
+use, whether metadata should be refreshed before we pull
+anything and if packets that are not currently downloaded should
+be considered candidates.</p>
+<p>This has no effect when running interactively, in which case you
+can specify the search options (root specific) with
+<a href="orderly_interactive_set_search_options.html">orderly_interactive_set_search_options</a></p>
+    </div>
+    <div id="equivalence-to-the-old-use-draft-option">
+    <h2>Equivalence to the old <code>use_draft</code> option</h2>
+    
+
+
+<p>The above location handling generalises orderly (v1)'s old
+<code>use_draft</code> option, in terms of the <code>location</code> argument to
+outpack::outpack_search_options`:</p><ul><li><p><code>use_draft = TRUE</code> is <code>location = "local"</code></p></li>
+<li><p><code>use_draft = FALSE</code> is <code>location = c(...)</code> where you should provide
+all locations <em>except</em> local
+(<code>setdiff(outpack::outpack_location_list(), "local")</code>)</p></li>
+<li><p><code>use_draft = "newer"</code> is <code>location = NULL</code></p></li>
+</ul><p>(this last option was the one most people preferred so is the new
+default behaviour). In addition, you could resolve dependencies
+as they currently exist on production right now with the options:</p>
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>location <span class="ot">=</span> <span class="st">"production"</span>, pull_metadata <span class="ot">=</span> <span class="cn">TRUE</span>, require_unpacked <span class="ot">=</span> <span class="cn">FALSE</span></span></code></pre><p></p></div>
+<p>which updates your current metadata from production, then runs
+queries against only packets known on that remote, then depends
+on them even if you don't (yet) have them locally.  This
+functionality was never available in orderly version 1, though
+we had intended to support it.</p>
     </div>
 
   </div>
