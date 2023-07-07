@@ -339,3 +339,13 @@ string_starts_with <- function(sub, str) {
 string_drop_prefix <- function(sub, str) {
   substr(str, nchar(sub) + 1, nchar(str))
 }
+
+
+check_symbol_from_str <- function(str, name) {
+  assert_scalar_character(str, name)
+  dat <- strsplit(str, "(?<=[^:])::(?=[^:])", perl = TRUE)[[1]]
+  if (length(dat) != 2) {
+    stop(sprintf("Expected fully qualified name for '%s'", name))
+  }
+  list(namespace = dat[[1]], symbol = dat[[2]])
+}

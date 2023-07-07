@@ -151,3 +151,15 @@ test_that("Descend failure", {
   expect_null(find_file_descend(".orderly_foobar", "/", path))
   expect_null(find_file_descend(".orderly_foobar", "/", "/"))
 })
+
+
+test_that("validate namespaced symbol strings", {
+  expect_equal(check_symbol_from_str("a::b", "x"),
+               list(namespace = "a", symbol = "b"))
+  expect_error(check_symbol_from_str("b", "x"),
+               "Expected fully qualified name for 'x'")
+  expect_error(check_symbol_from_str("a:::b", "x"),
+               "Expected fully qualified name for 'x'")
+  expect_error(check_symbol_from_str("a::b::c", "x"),
+               "Expected fully qualified name for 'x'")
+})
