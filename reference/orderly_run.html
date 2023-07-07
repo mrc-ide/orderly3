@@ -19,7 +19,7 @@ your script and check that all expected artefacts were created."><!-- mathjax --
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">orderly2</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.99.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.99.1</span>
       </span>
     </div>
 
@@ -86,13 +86,13 @@ may not always be what is wanted.</p></dd>
 
 <dt>logging_console</dt>
 <dd><p>Optional logical, passed through to
-outpack::outpack_packet_start to control printing logs to the
+<a href="outpack_packet.html">outpack_packet_start</a> to control printing logs to the
 console, overriding any default configuration set at the root.</p></dd>
 
 
 <dt>logging_threshold</dt>
 <dd><p>Optional logging threshold, passed through to
-outpack::outpack_packet_start to control the amount of detail
+<a href="outpack_packet.html">outpack_packet_start</a> to control the amount of detail
 in logs printed during running, overriding any default
 configuration set at the root. If given, must be one of <code>info</code>,
 <code>debug</code> or <code>trace</code> (in increasing order of
@@ -148,7 +148,7 @@ seconds to hours depending on their size and the speed of your
 network connection (but <em>not</em> pulling in the packets could mean
 that your packet fails to run).</p>
 <p>To allow for control over this you can pass in an argument
-<code>search_options</code>, which is a <a href="https://rdrr.io/pkg/outpack/man/outpack_search_options.html" class="external-link">outpack::outpack_search_options</a>
+<code>search_options</code>, which is a <a href="outpack_search_options.html">outpack_search_options</a>
 object, and allows control over the names of the locations to
 use, whether metadata should be refreshed before we pull
 anything and if packets that are not currently downloaded should
@@ -164,10 +164,10 @@ can specify the search options (root specific) with
 
 <p>The above location handling generalises orderly (v1)'s old
 <code>use_draft</code> option, in terms of the <code>location</code> argument to
-outpack::outpack_search_options`:</p><ul><li><p><code>use_draft = TRUE</code> is <code>location = "local"</code></p></li>
+orderly2::outpack_search_options`:</p><ul><li><p><code>use_draft = TRUE</code> is <code>location = "local"</code></p></li>
 <li><p><code>use_draft = FALSE</code> is <code>location = c(...)</code> where you should provide
 all locations <em>except</em> local
-(<code>setdiff(outpack::outpack_location_list(), "local")</code>)</p></li>
+(<code>setdiff(orderly2::outpack_location_list(), "local")</code>)</p></li>
 <li><p><code>use_draft = "newer"</code> is <code>location = NULL</code></p></li>
 </ul><p>(this last option was the one most people preferred so is the new
 default behaviour). In addition, you could resolve dependencies
