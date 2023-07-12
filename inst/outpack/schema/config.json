@@ -56,7 +56,7 @@
                         "type": "number"
                     },
                     "type": {
-                        "enum": ["http", "local", "orphan", "path"]
+                        "type": "string"
                     }
                 },
                 "required": ["name", "id", "priority", "type"]
